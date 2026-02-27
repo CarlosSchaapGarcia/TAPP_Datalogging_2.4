@@ -1,0 +1,71 @@
+# ----------------------------
+# Node.js
+# ----------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# If you WANT to track lock file, remove the line above.
+# For production systems, it's recommended to KEEP package-lock.json.
+
+# ----------------------------
+# Environment Variables
+# ----------------------------
+.env
+.env.*
+!.env.example
+
+# ----------------------------
+# Logs
+# ----------------------------
+logs/
+*.log
+
+# ----------------------------
+# OS Files
+# ----------------------------
+.DS_Store
+Thumbs.db
+
+# ----------------------------
+# IDE / Editor
+# ----------------------------
+
+# WebStorm / IntelliJ
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# ----------------------------
+# Build / Output
+# ----------------------------
+dist/
+build/
+coverage/
+
+# ----------------------------
+# Temporary files
+# ----------------------------
+tmp/
+temp/
+*.tmp
+
+# ----------------------------
+# Docker (if added later)
+# ----------------------------
+docker-compose.override.yml
+
+# ----------------------------
+# PostgreSQL local dumps
+# ----------------------------
+*.sql
+*.dump
+
+# Environment files
+.env
+.env.*
+!.env.example
