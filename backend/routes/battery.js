@@ -1,4 +1,4 @@
-const pool = require('../pool');
+const pool = require('../database');
 
 async function batteryRoutes(fastify, options) {
 
@@ -21,9 +21,9 @@ async function batteryRoutes(fastify, options) {
 
         const result = await pool.query(
             `INSERT INTO battery_measurements
-            (device_id, chip_number, voltage, percent)
+             (device_id, chip_number, voltage, percent)
              VALUES ($1, $2, $3, $4)
-            RETURNING id, created_at`,
+             RETURNING id, created_at`,
             [device_id, chip_number, voltage, percent]
         );
 
@@ -34,14 +34,15 @@ async function batteryRoutes(fastify, options) {
     });
 
     fastify.get('/', async () => {
-        const result = await pool.query(
+        const results = await pool.query(
             `SELECT *
-           FROM battery_measurements
-           ORDER BY created_at DESC
-           LIMIT 50`
+             FROM battery_measurements
+             ORDER BY created_at DESC
+             LIMIT 50`
         );
+
         return results.rows;
-    })
+    });
 }
 
 module.exports = batteryRoutes;
