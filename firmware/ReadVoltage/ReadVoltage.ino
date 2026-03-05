@@ -2,8 +2,8 @@
 #include <ESP8266HTTPClient.h>
 
 // ── WiFi credentials ─────────────────────────
-const char* SSID     = "Ziggo3884195";
-const char* PASSWORD = "5kk7ccMrshjdsapa";
+const char* SSID     = "ZHI8275";
+const char* PASSWORD = "Rninja2341-q";
 
 // ── Calibration ──────────────────────────────
 const float V_SCALE = 4.069f;
@@ -97,32 +97,66 @@ unsigned long lastPrint = 0;
 
 void loop() {
 
-    unsigned long now = millis();
-    if (now - lastPrint < 500) return;
-    lastPrint = now;
+    static int lastMilliVolt = -1;
+    static int sameCount = 0;
+    static bool chipLocked = false;
 
-    float v = readVoltage();
-    bool present = v >= V_CHIP_PRESENT;
+    float rawVoltage = readVoltage();
+    bool present = rawVoltage >= V_CHIP_PRESENT;
 
-    if (present && !chipPresent) {
-        chipPresent = true;
+    // If chip removed → reset everything
+    if (!present && chipLocked) {
+        chipLocked = false;
+        sameCount = 0;
+        lastMilliVolt = -1;
+        Serial.println("Chip removed. Ready for next chip.");
+        delay(300);
+        return;
+    }
+
+    // If chip not present and not locked → idle
+    if (!present) {
+        sameCount = 0;
+        lastMilliVolt = -1;
+        delay(300);
+        return;
+    }
+
+    // If chip already processed → wait for removal
+    if (chipLocked) {
+        delay(300);
+        return;
+    }
+
+    // Convert to millivolts (integer comparison)
+    int milliVolt = (int)(rawVoltage * 1000.0f + 0.5f);
+
+    if (milliVolt == lastMilliVolt) {
+        sameCount++;
+    } else {
+        sameCount = 1;
+        lastMilliVolt = milliVolt;
+    }
+
+    Serial.printf("Reading: %.3f V (stable %d/5)\n",
+                  milliVolt / 1000.0f, sameCount);
+
+    if (sameCount >= 5) {
+
         chipCount++;
 
-        uint8_t percent = voltageToPercent(v);
+        float finalVoltage = milliVolt / 1000.0f;
+        uint8_t percent = voltageToPercent(finalVoltage);
 
-        Serial.printf("[CHIP #%d] %.3f V  %d%%\n",
-                      chipCount, v, percent);
+        Serial.printf("\n[STORED #%d] %.3f V  %d%%\n",
+                      chipCount, finalVoltage, percent);
 
-        dbSend(chipCount, v, percent);
+        dbSend(chipCount, finalVoltage, percent);
+
+        Serial.println("REMOVE CHIP");
+
+        chipLocked = true;   // Lock until removal
     }
 
-    else if (present) {
-        Serial.printf("  %.3f V  %d%%\n",
-                      v, voltageToPercent(v));
-    }
-
-    else if (!present && chipPresent) {
-        chipPresent = false;
-        Serial.println("[REMOVED]");
-    }
+    delay(300);
 }
