@@ -97,66 +97,56 @@ unsigned long lastPrint = 0;
 
 void loop() {
 
-    static int lastMilliVolt = -1;
-    static int sameCount = 0;
     static bool chipLocked = false;
 
     float rawVoltage = readVoltage();
     bool present = rawVoltage >= V_CHIP_PRESENT;
 
-    // If chip removed → reset everything
+    // If chip removed → reset
     if (!present && chipLocked) {
         chipLocked = false;
-        sameCount = 0;
-        lastMilliVolt = -1;
         Serial.println("Chip removed. Ready for next chip.");
         delay(300);
         return;
     }
 
-    // If chip not present and not locked → idle
+    // No chip present
     if (!present) {
-        sameCount = 0;
-        lastMilliVolt = -1;
         delay(300);
         return;
     }
 
-    // If chip already processed → wait for removal
+    // Already processed this chip
     if (chipLocked) {
         delay(300);
         return;
     }
 
-    // Convert to millivolts (integer comparison)
-    int milliVolt = (int)(rawVoltage * 1000.0f + 0.5f);
+    // ── Take 10 readings and average them ──
+    float sum = 0;
 
-    if (milliVolt == lastMilliVolt) {
-        sameCount++;
-    } else {
-        sameCount = 1;
-        lastMilliVolt = milliVolt;
+    Serial.println("Measuring voltage...");
+
+    for (int i = 0; i < 10; i++) {
+        float v = readVoltage();
+        Serial.printf("Reading %d: %.3f V\n", i + 1, v);
+        sum += v;
+        delay(100);
     }
 
-    Serial.printf("Reading: %.3f V (stable %d/5)\n",
-                  milliVolt / 1000.0f, sameCount);
+    float avgVoltage = sum / 10.0;
+    uint8_t percent = voltageToPercent(avgVoltage);
 
-    if (sameCount >= 5) {
+    chipCount++;
 
-        chipCount++;
+    Serial.printf("\n[STORED #%d] AVG: %.3f V  %d%%\n",
+                  chipCount, avgVoltage, percent);
 
-        float finalVoltage = milliVolt / 1000.0f;
-        uint8_t percent = voltageToPercent(finalVoltage);
+    dbSend(chipCount, avgVoltage, percent);
 
-        Serial.printf("\n[STORED #%d] %.3f V  %d%%\n",
-                      chipCount, finalVoltage, percent);
+    Serial.println("REMOVE CHIP");
 
-        dbSend(chipCount, finalVoltage, percent);
-
-        Serial.println("REMOVE CHIP");
-
-        chipLocked = true;   // Lock until removal
-    }
+    chipLocked = true;
 
     delay(300);
 }
