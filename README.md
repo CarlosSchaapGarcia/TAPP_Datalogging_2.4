@@ -22,7 +22,7 @@ The system consists of two main components:
 - **Node.js** (v14+): [Download here](https://nodejs.org/)
 - **PostgreSQL**: [Download here](https://www.postgresql.org/download/)
 - **Arduino IDE**: [Download here](https://www.arduino.cc/en/software)
-- **ESP8266 Board** (e.g., NodeMCU) with voltage sensor connected to A0 pin
+- **ESP8266 Board** (e.g., ESP-12 or NodeMCU) with voltage sensor connected to A0 pin
 - Same WiFi network for ESP8266 and server
 
 ## Installation
@@ -52,9 +52,14 @@ The system consists of two main components:
    DB_PORT=5432
    ```
 
-5. Install ESP8266 support in Arduino IDE:
-   - Go to **File > Preferences** and add: `http://arduino.esp8266.com/stable/package_esp8266com_index.json`
-   - **Tools > Board > Boards Manager** > Install "esp8266"
+5. Install ESP8266 support in Arduino IDE (for ESP-12 board):
+
+   ### How to Install the Correct Board
+   1. Open Arduino IDE
+   2. Go to: File → Preferences
+   3. Add the ESP8266 boards URL: In "Additional Boards Manager URLs" paste: `http://arduino.esp8266.com/stable/package_esp8266com_index.json` (If there are already URLs there, separate them with a comma.)
+   4. Install the board package: Go to Tools → Board → Boards Manager, search for "ESP8266", and install "ESP8266 by ESP8266 Community".
+   5. Select your board: After installing, go to Tools → Board → ESP8266 Boards. Common choices for ESP-12 modules: NodeMCU 1.0 (ESP-12E Module) ← most common, or Generic ESP8266 Module ← safest if unsure.
 
 ## Running the Program
 
@@ -69,6 +74,8 @@ The system consists of two main components:
    - Initializes database table on startup.
 
 ### Firmware (ESP8266)
+
+This project uses an Arduino ESP-12 (ESP8266-based) module.
 
 1. Open `firmware/ReadVoltage/ReadVoltage.ino` in Arduino IDE.
 2. Update WiFi credentials:
@@ -115,8 +122,3 @@ The system consists of two main components:
 ## License
 
 ISC License. See repository for details.
-
-## Contributing
-
-Feel free to open issues or PRs on [GitHub](https://github.com/zhichengliangnhl/TAPP_Datalogging).</content>
-<parameter name="filePath">c:\Users\carli\Documents\TAPP Project\Repo\TAPP_Datalogging\README.md
