@@ -122,27 +122,39 @@ void loop() {
         return;
     }
 
-    // ── Take 10 readings and average them ──
-    float sum = 0;
+    // ── Take 10 readings ──
+    float readings[10];
 
     Serial.println("Measuring voltage...");
 
     for (int i = 0; i < 10; i++) {
-        float v = readVoltage();
-        Serial.printf("Reading %d: %.3f V\n", i + 1, v);
-        sum += v;
+        readings[i] = readVoltage();
+        Serial.printf("Reading %d: %.3f V\n", i + 1, readings[i]);
         delay(100);
     }
 
-    float avgVoltage = sum / 10.0;
-    uint8_t percent = voltageToPercent(avgVoltage);
+    // ── Sort readings (simple bubble sort) ──
+    for (int i = 0; i < 9; i++) {
+        for (int j = i + 1; j < 10; j++) {
+            if (readings[j] < readings[i]) {
+                float temp = readings[i];
+                readings[i] = readings[j];
+                readings[j] = temp;
+            }
+        }
+    }
+
+    // ── Median (average of middle two values) ──
+    float medianVoltage = (readings[4] + readings[5]) / 2.0;
+
+    uint8_t percent = voltageToPercent(medianVoltage);
 
     chipCount++;
 
-    Serial.printf("\n[STORED #%d] AVG: %.3f V  %d%%\n",
-                  chipCount, avgVoltage, percent);
+    Serial.printf("\n[STORED #%d] MEDIAN: %.3f V  %d%%\n",
+                  chipCount, medianVoltage, percent);
 
-    dbSend(chipCount, avgVoltage, percent);
+    dbSend(chipCount, medianVoltage, percent);
 
     Serial.println("REMOVE CHIP");
 
