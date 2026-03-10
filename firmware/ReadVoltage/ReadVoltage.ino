@@ -97,66 +97,68 @@ unsigned long lastPrint = 0;
 
 void loop() {
 
-    static int lastMilliVolt = -1;
-    static int sameCount = 0;
     static bool chipLocked = false;
 
     float rawVoltage = readVoltage();
     bool present = rawVoltage >= V_CHIP_PRESENT;
 
-    // If chip removed → reset everything
+    // If chip removed → reset
     if (!present && chipLocked) {
         chipLocked = false;
-        sameCount = 0;
-        lastMilliVolt = -1;
         Serial.println("Chip removed. Ready for next chip.");
         delay(300);
         return;
     }
 
-    // If chip not present and not locked → idle
+    // No chip present
     if (!present) {
-        sameCount = 0;
-        lastMilliVolt = -1;
         delay(300);
         return;
     }
 
-    // If chip already processed → wait for removal
+    // Already processed this chip
     if (chipLocked) {
         delay(300);
         return;
     }
 
-    // Convert to millivolts (integer comparison)
-    int milliVolt = (int)(rawVoltage * 1000.0f + 0.5f);
+    // ── Take 10 readings ──
+    float readings[10];
 
-    if (milliVolt == lastMilliVolt) {
-        sameCount++;
-    } else {
-        sameCount = 1;
-        lastMilliVolt = milliVolt;
+    Serial.println("Measuring voltage...");
+
+    for (int i = 0; i < 10; i++) {
+        readings[i] = readVoltage();
+        Serial.printf("Reading %d: %.3f V\n", i + 1, readings[i]);
+        delay(100);
     }
 
-    Serial.printf("Reading: %.3f V (stable %d/5)\n",
-                  milliVolt / 1000.0f, sameCount);
-
-    if (sameCount >= 5) {
-
-        chipCount++;
-
-        float finalVoltage = milliVolt / 1000.0f;
-        uint8_t percent = voltageToPercent(finalVoltage);
-
-        Serial.printf("\n[STORED #%d] %.3f V  %d%%\n",
-                      chipCount, finalVoltage, percent);
-
-        dbSend(chipCount, finalVoltage, percent);
-
-        Serial.println("REMOVE CHIP");
-
-        chipLocked = true;   // Lock until removal
+    // ── Sort readings (simple bubble sort) ──
+    for (int i = 0; i < 9; i++) {
+        for (int j = i + 1; j < 10; j++) {
+            if (readings[j] < readings[i]) {
+                float temp = readings[i];
+                readings[i] = readings[j];
+                readings[j] = temp;
+            }
+        }
     }
+
+    // ── Median (average of middle two values) ──
+    float medianVoltage = (readings[4] + readings[5]) / 2.0;
+
+    uint8_t percent = voltageToPercent(medianVoltage);
+
+    chipCount++;
+
+    Serial.printf("\n[STORED #%d] MEDIAN: %.3f V  %d%%\n",
+                  chipCount, medianVoltage, percent);
+
+    dbSend(chipCount, medianVoltage, percent);
+
+    Serial.println("REMOVE CHIP");
+
+    chipLocked = true;
 
     delay(300);
 }
