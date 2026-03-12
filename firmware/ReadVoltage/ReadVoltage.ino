@@ -2,8 +2,8 @@
 #include <ESP8266HTTPClient.h>
 
 // ── WiFi credentials ─────────────────────────
-const char* SSID     = "ZHI8275";
-const char* PASSWORD = "Rninja2341-q";
+const char* SSID     = "Airaa";
+const char* PASSWORD = "Chocolate2011$";
 
 // ── Calibration ──────────────────────────────
 const float V_SCALE = 4.069f;
@@ -42,7 +42,7 @@ void dbSend(int chip_num, float voltage, uint8_t percent) {
     WiFiClient client;
     HTTPClient http;
 
-    String serverUrl = "http://Zhi:8080/api/battery";
+    String serverUrl = "http://LENOVO-Yoga5:8080/api/battery";
 
     http.begin(client, serverUrl);
     http.addHeader("Content-Type", "application/json");

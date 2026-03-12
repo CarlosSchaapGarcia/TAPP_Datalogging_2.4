@@ -17,6 +17,8 @@ async function batteryRoutes(fastify, options) {
         }
     }, async (req, res) => {
 
+        console.log('BODY:', req.body);
+
         const { device_id, chip_number, voltage, percent } = req.body;
 
         const result = await pool.query(
@@ -26,6 +28,8 @@ async function batteryRoutes(fastify, options) {
              RETURNING id, created_at`,
             [device_id, chip_number, voltage, percent]
         );
+
+        console.log('INSERTED:', result.rows[0]);
 
         return {
             id: result.rows[0].id,
