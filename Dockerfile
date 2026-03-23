@@ -16,7 +16,7 @@ COPY backend ./backend
 COPY .env ./
 
 # Expose backend port
-EXPOSE 3000
+EXPOSE 8080
 
 # Start the backend server
-CMD ["npm", "backend/server.js"]
+CMD ["node", "backend/server.js"]
