@@ -12,6 +12,16 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
+    await pool.query(`
+    ALTER TABLE battery_measurements
+    ADD COLUMN IF NOT EXISTS slot_id VARCHAR(50);
+`);
+
+await pool.query(`
+    ALTER TABLE battery_measurements
+    ADD COLUMN IF NOT EXISTS nfc_id VARCHAR(100);
+`);
+
 
         console.log('Database table ensured');
     } catch (err) {

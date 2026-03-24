@@ -2,14 +2,15 @@
 #include <ESP8266HTTPClient.h>
 
 // ── WiFi credentials ─────────────────────────
-const char* SSID     = "ZHI8275";
-const char* PASSWORD = "Rninja2341-q";
-
+const char* SSID     = "Tete's";
+const char* PASSWORD = "Tete2480";
 // ── Calibration ──────────────────────────────
 const float V_SCALE = 4.069f;
 const float V_MAX   = 3.60f;
 const float V_MIN   = 2.40f;
 const float V_CHIP_PRESENT = 1.0f;
+const char* SLOT_ID = "slot_01";
+
 
 // ── Chip tracking ────────────────────────────
 int  chipCount   = 0;
@@ -42,7 +43,7 @@ void dbSend(int chip_num, float voltage, uint8_t percent) {
     WiFiClient client;
     HTTPClient http;
 
-    String serverUrl = "http://Zhi:8080/api/battery";
+    String serverUrl = "http://172.21.83.194:8080/api/battery";
 
     http.begin(client, serverUrl);
     http.addHeader("Content-Type", "application/json");
@@ -51,7 +52,8 @@ void dbSend(int chip_num, float voltage, uint8_t percent) {
     payload += "\"device_id\":\"station_01\",";
     payload += "\"chip_number\":" + String(chip_num) + ",";
     payload += "\"voltage\":" + String(voltage, 3) + ",";
-    payload += "\"percent\":" + String(percent);
+    payload += "\"percent\":" + String(percent) + ",";
+    payload += "\"slot_id\":\"" + String(SLOT_ID) + "\"";
     payload += "}";
 
     int httpCode = http.POST(payload);
