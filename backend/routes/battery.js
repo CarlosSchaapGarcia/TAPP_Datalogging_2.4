@@ -6,7 +6,7 @@ async function batteryRoutes(fastify, options) {
         schema: {
             body: {
                 type: 'object',
-                required: ['device_id', 'chip_number', 'voltage', 'percent'],
+                required: ['device_id', 'chip_number', 'voltage', 'percent', 'slot_id'],
                 properties: {
                     device_id: { type: 'string', maxLength: 100 },
                     chip_number: { type: 'integer' },
@@ -57,6 +57,7 @@ async function batteryRoutes(fastify, options) {
                 OR percent < 0
                 OR percent > 100
                 OR slot_id IS NULL
+                OR nfc_id IS NULL
              ORDER BY created_at DESC`
         );
 
