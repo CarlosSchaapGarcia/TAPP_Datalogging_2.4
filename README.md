@@ -112,6 +112,13 @@ This project uses an Arduino ESP-12 (ESP8266-based) module.
 - **Chip Detection**: `V_CHIP_PRESENT` threshold for insertion/removal.
 - **Database**: Modify `backend/init-db.js` for schema changes.
 
+## Low-Voltage Threshold Rules
+
+- **Threshold**: A reading is considered low voltage when `voltage < 2.40V` (`V_MIN`).
+- **Tolerance**: ±0.2V — valid range is `2.20V – 2.60V` around the threshold.
+- **Behaviour**: When voltage ≤ `V_MIN`, battery percentage is reported as `0%`.
+- **Client requirement**: Threshold aligns with the 2.40V minimum cell voltage spec.
+
 ## Troubleshooting
 
 - **DB Connection Error**: Check `.env` and PostgreSQL status.

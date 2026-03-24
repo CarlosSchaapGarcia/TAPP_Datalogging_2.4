@@ -7,7 +7,7 @@ const char* PASSWORD = "Tete2480";
 // ── Calibration ──────────────────────────────
 const float V_SCALE = 4.069f;
 const float V_MAX   = 3.60f;
-const float V_MIN   = 2.40f;
+const float V_MIN   = 2.40f;  // Low-voltage threshold (±0.2V tolerance). Below this → 0%.
 const float V_CHIP_PRESENT = 1.0f;
 const char* SLOT_ID = "slot_01";
 
