@@ -20,7 +20,7 @@ services:
       POSTGRES_PASSWORD: 6767
       POSTGRES_DB: tapp_battery
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - tapp-db-data:/var/lib/postgresql/data
   
