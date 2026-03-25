@@ -2,8 +2,8 @@
 #include <ESP8266HTTPClient.h>
 
 // ── WiFi credentials ─────────────────────────
-const char* SSID     = "Tete's";
-const char* PASSWORD = "Tete2480";
+const char* SSID     = "ZHI";
+const char* PASSWORD = "Rninja2341";
 // ── Calibration ──────────────────────────────
 const float V_SCALE = 4.069f;
 const float V_MAX   = 3.60f;
@@ -33,7 +33,7 @@ uint8_t voltageToPercent(float v) {
 }
 
 // ── Backend Send ─────────────────────────────
-void dbSend(int chip_num, float voltage, uint8_t percent) {
+void dbSend(float voltage, uint8_t percent) {
 
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("WiFi not connected - Skipping DB Send");
@@ -43,18 +43,19 @@ void dbSend(int chip_num, float voltage, uint8_t percent) {
     WiFiClient client;
     HTTPClient http;
 
-    String serverUrl = "http://172.21.83.194:8080/api/battery";
+    String serverUrl = "http://ZhiBook:8080/api/battery";
 
     http.begin(client, serverUrl);
     http.addHeader("Content-Type", "application/json");
 
     String payload = "{";
-    payload += "\"device_id\":\"station_01\",";
-    payload += "\"chip_number\":" + String(chip_num) + ",";
+    payload += "\"slot_id\":\"" + String(SLOT_ID) + "\",";
     payload += "\"voltage\":" + String(voltage, 3) + ",";
-    payload += "\"percent\":" + String(percent) + ",";
-    payload += "\"slot_id\":\"" + String(SLOT_ID) + "\"";
+    payload += "\"percent\":" + String(percent);
     payload += "}";
+
+    Serial.println("Sending payload:");
+    Serial.println(payload);
 
     int httpCode = http.POST(payload);
 
@@ -156,7 +157,7 @@ void loop() {
     Serial.printf("\n[STORED #%d] MEDIAN: %.3f V  %d%%\n",
                   chipCount, medianVoltage, percent);
 
-    dbSend(chipCount, medianVoltage, percent);
+    dbSend(medianVoltage, percent);
 
     Serial.println("REMOVE CHIP");
 

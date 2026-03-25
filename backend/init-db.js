@@ -13,15 +13,21 @@ async function initDatabase() {
                 percent INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW()
                 );
+
+            CREATE INDEX IF NOT EXISTS idx_nfc_id
+                ON battery_measurements(nfc_id);
         `);
 
         console.log('Database table ensured');
-
-        process.exit(0);
     } catch (err) {
         console.error('Database initialization failed:', err);
         process.exit(1);
     }
 }
 
-initDatabase();
+// Only run if executed directly (safe)
+if (require.main === module) {
+    initDatabase().then(() => process.exit(0));
+}
+
+module.exports = initDatabase;
