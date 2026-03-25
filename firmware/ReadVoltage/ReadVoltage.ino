@@ -1,10 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 
-// // ── WiFi credentials ─────────────────────────
-// const char* SSID     = "ZHI8275";
-// const char* PASSWORD = "Rninja2341-q";
-
 // ── Calibration ──────────────────────────────
 const float V_SCALE = 4.069f;
 const float V_MAX   = 3.60f;
@@ -31,65 +27,10 @@ uint8_t voltageToPercent(float v) {
     return (uint8_t)((v - V_MIN) / (V_MAX - V_MIN) * 100.0f + 0.5f);
 }
 
-// // ── Backend Send ─────────────────────────────
-// void dbSend(int chip_num, float voltage, uint8_t percent) {
-
-//     if (WiFi.status() != WL_CONNECTED) {
-//         Serial.println("WiFi not connected - Skipping DB Send");
-//         return;
-//     }
-
-//     WiFiClient client;
-//     HTTPClient http;
-
-//     String serverUrl = "http://Zhi:8080/api/battery";
-
-//     http.begin(client, serverUrl);
-//     http.addHeader("Content-Type", "application/json");
-
-//     String payload = "{";
-//     payload += "\"device_id\":\"station_01\",";
-//     payload += "\"chip_number\":" + String(chip_num) + ",";
-//     payload += "\"voltage\":" + String(voltage, 3) + ",";
-//     payload += "\"percent\":" + String(percent);
-//     payload += "}";
-
-//     int httpCode = http.POST(payload);
-
-//     if (httpCode > 0) {
-//         Serial.printf("HTTP Response Code: %d\n", httpCode);
-//     } else {
-//         Serial.printf("HTTP POST failed: %s\n",
-//                       http.errorToString(httpCode).c_str());
-//     }
-
-//     http.end();
-// }
-
 // ── Setup ────────────────────────────────────
 void setup() {
     Serial.begin(9600);
     delay(200);
-    Serial.println("\n=== TAPP Ink Battery Monitor ===");
-
-    // WiFi.mode(WIFI_STA);
-    // WiFi.begin(SSID, PASSWORD);
-
-    // Serial.print("Connecting to WiFi");
-    // int tries = 0;
-
-    // while (WiFi.status() != WL_CONNECTED && tries < 30) {
-    //     delay(500);
-    //     Serial.print(".");
-    //     tries++;
-    // }
-
-    // if (WiFi.status() == WL_CONNECTED) {
-    //     Serial.printf("\nConnected. IP: %s\n",
-    //                   WiFi.localIP().toString().c_str());
-    // } else {
-    //     Serial.println("\nWiFi failed - continuing without backend");
-    // }
 }
 
 // ── Loop ─────────────────────────────────────
@@ -105,7 +46,7 @@ void loop() {
     // If chip removed → reset
     if (!present && chipLocked) {
         chipLocked = false;
-        Serial.println("Chip removed. Ready for next chip.");
+        //Serial.println("Chip removed. Ready for next chip.");
         delay(300);
         return;
     }
@@ -125,11 +66,11 @@ void loop() {
     // ── Take 10 readings ──
     float readings[10];
 
-    Serial.println("Measuring voltage...");
+    //Serial.println("Measuring voltage...");
 
     for (int i = 0; i < 10; i++) {
         readings[i] = readVoltage();
-        Serial.printf("Reading %d: %.3f V\n", i + 1, readings[i]);
+        //Serial.printf("Reading %d: %.3f V\n", i + 1, readings[i]);
         delay(100);
     }
 
@@ -151,12 +92,11 @@ void loop() {
 
     chipCount++;
 
-    Serial.printf("\n[STORED #%d] MEDIAN: %.3f V  %d%%\n",
-                  chipCount, medianVoltage, percent);
+    Serial.println(medianVoltage);
 
     // dbSend(chipCount, medianVoltage, percent);
 
-    Serial.println("REMOVE CHIP");
+    //Serial.println("REMOVE CHIP");
 
     chipLocked = true;
 
