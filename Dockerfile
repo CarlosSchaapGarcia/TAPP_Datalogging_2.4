@@ -12,9 +12,6 @@ RUN npm install
 # Copy backend code into container
 COPY backend ./backend
 
-# Copy any other file your backend needs
-COPY .env ./
-
 # Expose backend port
 EXPOSE 8080
 
