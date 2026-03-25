@@ -6,31 +6,26 @@ async function batteryRoutes(fastify, options) {
         schema: {
             body: {
                 type: 'object',
-                required: ['device_id', 'chip_number', 'voltage', 'percent', 'slot_id'],
+                required: ['slot_id', 'nfc_id', 'voltage', 'percent'],
                 properties: {
-                    device_id: { type: 'string', maxLength: 100 },
-                    chip_number: { type: 'integer' },
-                    voltage: { type: 'number' },
-                    percent: { type: 'integer', minimum: 0, maximum: 100 },
                     slot_id: { type: 'string', maxLength: 50 },
                     nfc_id: { type: 'string', maxLength: 100 },
-
+                    voltage: { type: 'number' },
+                    percent: { type: 'integer', minimum: 0, maximum: 100 }
                 }
             }
         }
     }, async (req, res) => {
 
-        const { device_id, chip_number, voltage, percent, slot_id, nfc_id } = req.body;
-
+        const { slot_id, nfc_id, voltage, percent } = req.body;
 
         const result = await pool.query(
-    `INSERT INTO battery_measurements
-     (device_id, chip_number, voltage, percent, slot_id, nfc_id)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, created_at`,
-    [device_id, chip_number, voltage, percent, slot_id, nfc_id]
-);
-
+            `INSERT INTO battery_measurements
+                 (slot_id, nfc_id, voltage, percent)
+             VALUES ($1, $2, $3, $4)
+                 RETURNING id, created_at`,
+            [slot_id, nfc_id, voltage, percent]
+        );
 
         return {
             id: result.rows[0].id,
@@ -38,17 +33,19 @@ async function batteryRoutes(fastify, options) {
         };
     });
 
+    // ── Get latest 50 ──
     fastify.get('/', async () => {
         const results = await pool.query(
             `SELECT *
              FROM battery_measurements
              ORDER BY created_at DESC
-             LIMIT 50`
+                 LIMIT 50`
         );
 
         return results.rows;
     });
 
+    // ── Validation endpoint ──
     fastify.get('/validate', async () => {
         const result = await pool.query(
             `SELECT * FROM battery_measurements
