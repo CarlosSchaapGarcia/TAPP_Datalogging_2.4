@@ -1,10 +1,7 @@
 import com.fazecast.jSerialComm.SerialPort;
-
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.sql.*;
-
+import java.time.LocalDateTime;
 
 public class Main
 {
@@ -59,9 +56,10 @@ public class Main
                 {
                     System.out.println(voltage);
                     PreparedStatement st = db.prepareStatement("INSERT INTO \"BatteryVoltage\" " +
-                            "(\"chipID\", \"voltage\") VALUES (?, ?)");
+                            "(\"chipID\", \"dateTime\", \"voltage\") VALUES (?, ?, ?)");
                     st.setString(1, "1111");
-                    st.setDouble(2, voltage);
+                    st.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
+                    st.setDouble(3, voltage);
                     st.executeUpdate();
                     st.close();
                 }
