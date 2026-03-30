@@ -1,4 +1,18 @@
 services:
+  tapp-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tapp-backend
+    env_file:
+      - .env
+    environment:
+      DB_HOST: tapp-db
+    ports:
+      - "8080:8080"
+    depends_on:
+      - tapp-db
+
   tapp-db:
     image: postgres:15
     container_name: tapp-db
