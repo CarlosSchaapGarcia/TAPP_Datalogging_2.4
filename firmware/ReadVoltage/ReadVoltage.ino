@@ -4,17 +4,22 @@
 // ── WiFi credentials ─────────────────────────
 const char* SSID     = "ZHI";
 const char* PASSWORD = "Rninja2341";
-// ── Calibration ──────────────────────────────
-const float V_SCALE = 4.069f;
-const float V_MAX   = 3.60f;
-const float V_MIN   = 2.40f;  // Low-voltage threshold (±0.2V tolerance). Below this → 0%.
+
+// ── Calibration (from multimeter readings 2026-03-27) ────
+// Wemos D1 Mini A0 divider: external 150K + onboard 220K/100K
+// Linear fit: true = 0.9908 * esp - 0.0108
+const float SCALE_FACTOR = 4.674f / 1023.0f;  // volts per ADC count
+const float OFFSET       = -0.011f;            // calibration offset
+
+// ── Battery thresholds ───────────────────────
+const float V_MAX   = 3.30f;
+const float V_MIN   = 2.40f;   // below this -> 0%
 const float V_CHIP_PRESENT = 1.0f;
+
 const char* SLOT_ID = "slot_01";
 
-
 // ── Chip tracking ────────────────────────────
-int  chipCount   = 0;
-bool chipPresent = false;
+int chipCount = 0;
 
 // ── Helpers ──────────────────────────────────
 float readVoltage() {
@@ -23,7 +28,7 @@ float readVoltage() {
         sum += analogRead(A0);
         delay(2);
     }
-    return (sum / 16.0f) / 1023.0f * V_SCALE;
+    return (sum / 16.0f) * SCALE_FACTOR + OFFSET;
 }
 
 uint8_t voltageToPercent(float v) {
@@ -32,8 +37,32 @@ uint8_t voltageToPercent(float v) {
     return (uint8_t)((v - V_MIN) / (V_MAX - V_MIN) * 100.0f + 0.5f);
 }
 
+// ── WiFi reconnect ───────────────────────────
+void ensureWiFi() {
+    if (WiFi.status() == WL_CONNECTED) return;
+
+    Serial.print("Reconnecting WiFi");
+    WiFi.disconnect();
+    WiFi.begin(SSID, PASSWORD);
+
+    int tries = 0;
+    while (WiFi.status() != WL_CONNECTED && tries < 20) {
+        delay(500);
+        Serial.print(".");
+        tries++;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.printf("\nConnected. IP: %s\n",
+                      WiFi.localIP().toString().c_str());
+    } else {
+        Serial.println("\nWiFi reconnect failed");
+    }
+}
+
 // ── Backend Send ─────────────────────────────
 void dbSend(float voltage, uint8_t percent) {
+    ensureWiFi();
 
     if (WiFi.status() != WL_CONNECTED) {
         Serial.println("WiFi not connected - Skipping DB Send");
@@ -43,24 +72,21 @@ void dbSend(float voltage, uint8_t percent) {
     WiFiClient client;
     HTTPClient http;
 
-    String serverUrl = "http://ZhiBook:8080/api/battery";
-
-    http.begin(client, serverUrl);
+    http.begin(client, "http://ZhiBook:8080/api/battery");
     http.addHeader("Content-Type", "application/json");
 
-    String payload = "{";
-    payload += "\"slot_id\":\"" + String(SLOT_ID) + "\",";
-    payload += "\"voltage\":" + String(voltage, 3) + ",";
-    payload += "\"percent\":" + String(percent);
-    payload += "}";
+    char payload[128];
+    snprintf(payload, sizeof(payload),
+             "{\"slot_id\":\"%s\",\"voltage\":%.3f,\"percent\":%d}",
+             SLOT_ID, voltage, percent);
 
-    Serial.println("Sending payload:");
+    Serial.print("Sending: ");
     Serial.println(payload);
 
     int httpCode = http.POST(payload);
 
     if (httpCode > 0) {
-        Serial.printf("HTTP Response Code: %d\n", httpCode);
+        Serial.printf("HTTP Response: %d\n", httpCode);
     } else {
         Serial.printf("HTTP POST failed: %s\n",
                       http.errorToString(httpCode).c_str());
@@ -80,7 +106,6 @@ void setup() {
 
     Serial.print("Connecting to WiFi");
     int tries = 0;
-
     while (WiFi.status() != WL_CONNECTED && tries < 30) {
         delay(500);
         Serial.print(".");
@@ -96,16 +121,13 @@ void setup() {
 }
 
 // ── Loop ─────────────────────────────────────
-unsigned long lastPrint = 0;
-
 void loop() {
-
     static bool chipLocked = false;
 
     float rawVoltage = readVoltage();
     bool present = rawVoltage >= V_CHIP_PRESENT;
 
-    // If chip removed → reset
+    // Chip removed -> unlock
     if (!present && chipLocked) {
         chipLocked = false;
         Serial.println("Chip removed. Ready for next chip.");
@@ -113,13 +135,13 @@ void loop() {
         return;
     }
 
-    // No chip present
+    // No chip
     if (!present) {
         delay(300);
         return;
     }
 
-    // Already processed this chip
+    // Already processed
     if (chipLocked) {
         delay(300);
         return;
@@ -127,7 +149,6 @@ void loop() {
 
     // ── Take 10 readings ──
     float readings[10];
-
     Serial.println("Measuring voltage...");
 
     for (int i = 0; i < 10; i++) {
@@ -136,7 +157,7 @@ void loop() {
         delay(100);
     }
 
-    // ── Sort readings (simple bubble sort) ──
+    // ── Sort (bubble sort for median) ──
     for (int i = 0; i < 9; i++) {
         for (int j = i + 1; j < 10; j++) {
             if (readings[j] < readings[i]) {
@@ -147,20 +168,17 @@ void loop() {
         }
     }
 
-    // ── Median (average of middle two values) ──
-    float medianVoltage = (readings[4] + readings[5]) / 2.0;
-
+    // ── Median of middle two ──
+    float medianVoltage = (readings[4] + readings[5]) / 2.0f;
     uint8_t percent = voltageToPercent(medianVoltage);
 
     chipCount++;
-
     Serial.printf("\n[STORED #%d] MEDIAN: %.3f V  %d%%\n",
                   chipCount, medianVoltage, percent);
 
     dbSend(medianVoltage, percent);
 
     Serial.println("REMOVE CHIP");
-
     chipLocked = true;
 
     delay(300);

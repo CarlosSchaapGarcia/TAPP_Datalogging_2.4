@@ -16,7 +16,17 @@ fastify.register(cors);
 
 // NFC ENDPOINT
 fastify.post('/api/nfc', async (req, res) => {
-    const { nfc_id } = req.body;
+    const body = req.body ?? {};
+    const { nfc_id } = body;
+
+    if (!req.body || typeof req.body !== 'object') {
+        req.log.warn({
+            headers: req.headers,
+            body: req.body
+        }, 'Received NFC request without a valid JSON body');
+
+        return res.code(400).send({ error: "Missing JSON body" });
+    }
 
     if (!nfc_id || nfc_id.trim() === '') {
         return res.code(400).send({ error: "Invalid NFC ID" });

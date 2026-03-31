@@ -3,6 +3,10 @@ import requests
 import time
 
 API_URL = "http://localhost:8080/api/nfc"
+REQUEST_HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+}
 
 print("Looking for NFC reader...")
 
@@ -13,7 +17,7 @@ if not r:
     exit()
 
 reader = r[0]
-print(f"✅ Using reader: {reader}")
+print(f"Using reader: {reader}")
 
 connection = reader.createConnection()
 
@@ -29,13 +33,20 @@ while True:
         if uid != last_uid:
             print(f"NFC Detected: {uid}")
 
-            requests.post(API_URL, json={"nfc_id": uid})
-            print("Sent to backend")
+            response = requests.post(
+                API_URL,
+                json={"nfc_id": uid},
+                headers=REQUEST_HEADERS,
+                timeout=5,
+            )
+            response.raise_for_status()
+            print(f"Sent to backend: {response.status_code} {response.text}")
 
             last_uid = uid
 
         time.sleep(1)
 
-    except Exception:
+    except Exception as error:
+        print(f"NFC read/send error: {error}")
         last_uid = None
         time.sleep(1)
