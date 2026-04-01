@@ -72,7 +72,7 @@ void dbSend(float voltage, uint8_t percent) {
     WiFiClient client;
     HTTPClient http;
 
-    http.begin(client, "http://ZhiBook:8080/api/battery");
+    http.begin(client, "http://192.168.137.1:8080/api/battery");
     http.addHeader("Content-Type", "application/json");
 
     char payload[128];

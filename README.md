@@ -21,6 +21,7 @@ The system consists of three main components:
 ## Prerequisites
 
 - **Docker & Docker Compose**: [Install Docker](https://docs.docker.com/get-docker/)
+- **Python 3.10+** and `pip` if you want to run the NFC reader on the host
 - **Arduino IDE**: [Download here](https://www.arduino.cc/en/software) (for ESP8266 firmware)
 - **ESP8266 Board** (e.g., ESP-12 or NodeMCU) with voltage sensor connected to A0 pin
 - **NFC Reader Hardware** (optional, for full NFC integration)
@@ -44,14 +45,22 @@ The system consists of three main components:
    ```bash
    docker-compose up --build
    ```
-   - Backend runs on `http://localhost:8081`
-   - Database runs on `localhost:5433` (internal only)
-   - Database is automatically initialized on first run
+   - Backend runs on `http://localhost:8080`
+   - Database runs on `localhost:5432`
+   - Database is automatically initialized on startup if the table does not exist
+   - This starts the backend and database containers
 
 2. Stop the services:
    ```bash
    docker-compose down
    ```
+
+3. If you changed database credentials or want a clean database reset:
+   ```bash
+   docker-compose down -v --remove-orphans
+   docker-compose up --build
+   ```
+   - `-v` removes the PostgreSQL volume so the database is initialized again from the current `.env`
 
 ### Manual Setup (Alternative)
 
@@ -73,7 +82,7 @@ If you prefer not to use Docker:
    ```
 3. Update server URL (use your Docker host IP):
    ```cpp
-   http.begin(client, "http://YOUR_HOST_IP:8081/api/battery");
+   http.begin(client, "http://YOUR_HOST_IP:8080/api/battery");
    ```
 4. Install ESP8266 board support in Arduino IDE:
    - File → Preferences → Additional Boards Manager URLs
@@ -85,12 +94,35 @@ If you prefer not to use Docker:
 
 ### NFC Reader (Optional)
 
-1. Ensure Python dependencies are installed (see `requirements.txt`)
-2. Run the NFC reader script:
+1. Install Python dependencies:
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+   - This installs `requests` and `pyscard`
+   - `pyscard` is used to communicate with the NFC reader
+   - On Windows, you may also need PC/SC smart card drivers for your NFC reader
+
+2. Ensure the reader is connected and recognized by your system
+
+3. Run the NFC reader script:
    ```bash
    python backend/nfc_reader.py
    ```
    - This sends NFC scans to the backend API
+   - You can override the backend target with `NFC_API_URL`
+
+### Python Packages Used For NFC
+
+- `requests`: sends NFC scan data to the backend API
+- `pyscard`: reads NFC tags through a compatible smart card / PCSC reader
+
+### NFC With Docker
+
+- `docker-compose --profile nfc up --build` starts an extra `tapp-nfc` container that runs `backend/nfc_reader.py`
+- The container sends scans to `http://tapp-backend:8080/api/nfc`
+- On Linux hosts, USB/PCSC passthrough can be configured so the container can access the reader
+- On Docker Desktop for Windows/macOS, NFC hardware passthrough is often not available, so the container may start correctly but still be unable to see the physical reader
+- If Docker cannot access the NFC hardware on your machine, keep using Docker for `tapp-backend` and `tapp-db`, and run `python backend/nfc_reader.py` on the host instead
 
 ## API Documentation
 
@@ -130,6 +162,38 @@ PORT=8080
 - Automatic initialization via `backend/init-db.js`
 - Table: `battery_measurements` with columns for slot_id, nfc_id, voltage, percent, created_at
 
+## Inspecting PostgreSQL In Terminal
+
+You can inspect the database directly from the Docker container with `psql`.
+
+1. Start the stack:
+   ```bash
+   docker-compose up -d --build
+   ```
+
+2. Check that PostgreSQL is ready:
+   ```bash
+   docker-compose logs tapp-db
+   ```
+   - Wait for `database system is ready to accept connections`
+
+3. List all tables in the app database:
+   ```bash
+   docker-compose exec tapp-db psql -U postgres -d tapp_battery -c "\dt"
+   ```
+
+4. View the table contents:
+   ```bash
+   docker-compose exec tapp-db psql -U postgres -d tapp_battery -c "SELECT * FROM battery_measurements;"
+   ```
+
+5. Open an interactive PostgreSQL shell:
+   ```bash
+   docker-compose exec tapp-db psql -U postgres -d tapp_battery
+   ```
+   - Inside `psql`, use `\dt` to list tables
+   - Inside `psql`, use `SELECT * FROM battery_measurements;` to inspect rows
+
 ## Testing
 
 1. Start Docker services: `docker-compose up`
@@ -141,27 +205,49 @@ PORT=8080
 Example API calls:
 ```bash
 # Store NFC ID
-curl -X POST http://localhost:8081/api/nfc \
+curl -X POST http://localhost:8080/api/nfc \
   -H "Content-Type: application/json" \
   -d '{"nfc_id":"ABC123"}'
 
 # Log battery measurement
-curl -X POST http://localhost:8081/api/battery \
+curl -X POST http://localhost:8080/api/battery \
   -H "Content-Type: application/json" \
   -d '{"slot_id":"slot_01","voltage":3.5,"percent":80}'
 
 # Get measurements
-curl http://localhost:8081/api/battery
+curl http://localhost:8080/api/battery
 ```
 
 ## Troubleshooting
 
 - **Docker Issues**: Ensure Docker Desktop is running
-- **Port Conflicts**: If 8081/5433 are in use, modify `docker-compose.yml`
+- **Port Conflicts**: If 8080/5432 are in use, modify `docker-compose.yml`
 - **WiFi Issues**: Verify ESP8266 credentials and network connectivity
 - **No Data**: Check server logs with `docker-compose logs`
 - **Voltage Calibration**: Use multimeter to verify readings
 - **NFC Not Working**: Ensure NFC reader script is running and hardware is connected
+
+### Bug Fix Notes
+
+During setup, the following issues were identified and fixed:
+
+- The backend and Docker Compose expect `DB_PASS`, not `DB_PASSWORD`
+- Docker Compose was not receiving the expected database variables until the environment values were loaded correctly
+- The PostgreSQL container user must match the values used in `.env`
+- `init-db.js` creates the `battery_measurements` table, but the PostgreSQL container creates the `tapp_battery` database itself
+- Running `psql` too early can fail before PostgreSQL is fully ready, so checking `docker-compose logs tapp-db` first helps
+
+Recommended `.env`:
+
+```env
+PORT=8080
+NODE_ENV=development
+DB_HOST=tapp-db
+DB_PORT=5432
+DB_USER=postgres
+DB_PASS=6767
+DB_NAME=tapp_battery
+```
 
 ## Project Structure
 

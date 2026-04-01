@@ -13,6 +13,20 @@ services:
     depends_on:
       - tapp-db
 
+  tapp-nfc:
+    build:
+      context: .
+      dockerfile: Dockerfile.nfc
+    container_name: tapp-nfc
+    profiles:
+      - nfc
+    environment:
+      NFC_API_URL: http://tapp-backend:8080/api/nfc
+      NFC_POLL_INTERVAL: 1
+    depends_on:
+      - tapp-backend
+    restart: unless-stopped
+
   tapp-db:
     image: postgres:15
     container_name: tapp-db

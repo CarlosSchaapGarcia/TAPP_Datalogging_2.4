@@ -1,7 +1,25 @@
 const pool = require('./database');
 
+async function waitForDatabase(maxAttempts = 15, delayMs = 2000) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            await pool.query('SELECT 1');
+            console.log('Database connection ready');
+            return;
+        } catch (err) {
+            if (attempt === maxAttempts) {
+                throw err;
+            }
+
+            console.log(`Database not ready yet (attempt ${attempt}/${maxAttempts}), retrying...`);
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+    }
+}
+
 async function initDatabase() {
     try {
+        await waitForDatabase();
         console.log("Running DB migration...");
 
         await pool.query(`
