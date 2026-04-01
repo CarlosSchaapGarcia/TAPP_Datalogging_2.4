@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find 'c:\\\\Users\\\\stefi\\\\OneDrive\\\\Desktop\\\\TAPP Project\\\\TAPP_Datalogging' -not -path */node_modules/* -not -path */.git/* -type f -o -type d)"
+    ]
+  }
+}
