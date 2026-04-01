@@ -12,9 +12,9 @@ public class Main
         COM_PORT.setBaudRate(9600);
 
         // Database credentials, set to correct one
-        final String DB_URL = "jdbc:postgresql://localhost:5432/tapp_db";
-        final String USERNAME = "user";
-        final String PASSWORD = "qwerty";
+        final String DB_URL = "jdbc:postgresql://localhost:5432/tapp_battery";
+        final String USERNAME = "postgres";
+        final String PASSWORD = "6767";
 
         char commChar = 0;
 
