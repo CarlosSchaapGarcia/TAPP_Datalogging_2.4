@@ -7,6 +7,13 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 
+# ----------------------------
+# Python
+# ----------------------------
+venv/
+.venv/
+__pycache__/
+
 # If you WANT to track lock file, remove the line above.
 # For production systems, it's recommended to KEEP package-lock.json.
 
