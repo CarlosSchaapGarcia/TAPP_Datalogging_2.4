@@ -2,7 +2,7 @@
 #include <ESP8266HTTPClient.h>
 
 // ── WiFi credentials ─────────────────────────
-const char* SSID     = "ZHI";
+const char* SSID     = "CARLOS";
 const char* PASSWORD = "Rninja2341";
 
 // ── Calibration (from multimeter readings 2026-03-27) ────
