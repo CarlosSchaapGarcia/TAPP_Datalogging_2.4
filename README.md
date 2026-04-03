@@ -25,6 +25,7 @@ The system consists of three main components:
 - **Arduino IDE**: [Download here](https://www.arduino.cc/en/software) (for ESP8266 firmware)
 - **ESP8266 Board** (e.g., ESP-12 or NodeMCU) with voltage sensor connected to A0 pin
 - **NFC Reader Hardware** (optional, for full NFC integration)
+- **Python Version** [Install Lower Python Version](https://www.python.org/downloads/release/python-3110/) due to library issues
 - Same WiFi network for ESP8266 and server
 
 ## Installation
@@ -92,7 +93,7 @@ If you prefer not to use Docker:
 5. Select port and upload the firmware
 6. Monitor via Serial (115200 baud)
 
-### NFC Reader (Optional)
+### NFC Reader
 
 1. Install Python dependencies:
    ```bash
@@ -115,6 +116,7 @@ If you prefer not to use Docker:
 
 - `requests`: sends NFC scan data to the backend API
 - `pyscard`: reads NFC tags through a compatible smart card / PCSC reader
+- `python version`: 3.11 or download here from official link `https://www.python.org/downloads/release/python-3110/`
 
 ### NFC With Docker
 
