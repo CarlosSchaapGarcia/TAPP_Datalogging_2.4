@@ -1,5 +1,13 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#include <Servo.h>
+
+// ── Servo ────────────────────────────────────
+Servo armServo;
+const int SERVO_PIN = D5;     // GPIO14 on Wemos D1 Mini
+
+const int ARM_UP_POS = 0;     // Adjust as needed
+const int ARM_DOWN_POS = 90;  // Adjust as needed
 
 // ── WiFi credentials ─────────────────────────
 const char* SSID     = "CARLOS";
@@ -35,6 +43,28 @@ uint8_t voltageToPercent(float v) {
     if (v >= V_MAX) return 100;
     if (v <= V_MIN) return 0;
     return (uint8_t)((v - V_MIN) / (V_MAX - V_MIN) * 100.0f + 0.5f);
+}
+
+void lowerArm() {
+    Serial.println("Lowering arm...");
+
+    for (int pos = ARM_UP_POS; pos <= ARM_DOWN_POS; pos++) {
+        armServo.write(pos);
+        delay(15);
+    }
+
+    delay(1000); // Allow probe to settle on battery
+}
+
+void raiseArm() {
+    Serial.println("Raising arm...");
+
+    for (int pos = ARM_DOWN_POS; pos >= ARM_UP_POS; pos--) {
+        armServo.write(pos);
+        delay(15);
+    }
+
+    delay(500);
 }
 
 // ── WiFi reconnect ───────────────────────────
@@ -101,6 +131,10 @@ void setup() {
     delay(200);
     Serial.println("\n=== TAPP Ink Battery Monitor ===");
 
+    armServo.attach(SERVO_PIN);
+    armServo.write(ARM_UP_POS);   // Start with arm raised
+    delay(500);
+
     WiFi.mode(WIFI_STA);
     WiFi.begin(SSID, PASSWORD);
 
@@ -147,6 +181,8 @@ void loop() {
         return;
     }
 
+    lowerArm();
+
     // ── Take 10 readings ──
     float readings[10];
     Serial.println("Measuring voltage...");
@@ -178,6 +214,8 @@ void loop() {
 
     dbSend(medianVoltage, percent);
 
+    raiseArm();
+    
     Serial.println("REMOVE CHIP");
     chipLocked = true;
 
