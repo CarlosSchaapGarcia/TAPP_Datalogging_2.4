@@ -1,165 +1,81 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
+#include <Servo.h>
 
-// ── WiFi credentials ─────────────────────────
-const char* SSID     = "CARLOS";
-const char* PASSWORD = "Rninja2341";
+// ── SERVO ─────────────────────────────────────
+Servo armServo;
 
-// ── Calibration (from multimeter readings 2026-03-27) ────
-// Wemos D1 Mini A0 divider: external 150K + onboard 220K/100K
-// Linear fit: true = 0.9908 * esp - 0.0108
-const float SCALE_FACTOR = 4.674f / 1023.0f;  // volts per ADC count
-const float OFFSET       = -0.011f;            // calibration offset
+const int SERVO_PIN = 9;
 
-// ── Battery thresholds ───────────────────────
-const float V_MAX   = 3.30f;
-const float V_MIN   = 2.40f;   // below this -> 0%
-const float V_CHIP_PRESENT = 1.0f;
+// Adjust these once you know your real angles
+const int ARM_UP_POS = 180;
+const int ARM_DOWN_POS = 90;
 
-const char* SLOT_ID = "slot_01";
+// ── VOLTAGE ───────────────────────────────────
+const int VOLTAGE_PIN = A0;
+const float SCALE_FACTOR = 5.0f / 1023.0f;
 
-// ── Chip tracking ────────────────────────────
-int chipCount = 0;
-
-// ── Helpers ──────────────────────────────────
+// ── READ VOLTAGE ─────────────────────────────
 float readVoltage() {
     long sum = 0;
+
     for (int i = 0; i < 16; i++) {
-        sum += analogRead(A0);
+        sum += analogRead(VOLTAGE_PIN);
         delay(2);
     }
-    return (sum / 16.0f) * SCALE_FACTOR + OFFSET;
+
+    float adc = sum / 16.0;
+    return adc * SCALE_FACTOR;
 }
 
-uint8_t voltageToPercent(float v) {
-    if (v >= V_MAX) return 100;
-    if (v <= V_MIN) return 0;
-    return (uint8_t)((v - V_MIN) / (V_MAX - V_MIN) * 100.0f + 0.5f);
-}
-
-// ── WiFi reconnect ───────────────────────────
-void ensureWiFi() {
-    if (WiFi.status() == WL_CONNECTED) return;
-
-    Serial.print("Reconnecting WiFi");
-    WiFi.disconnect();
-    WiFi.begin(SSID, PASSWORD);
-
-    int tries = 0;
-    while (WiFi.status() != WL_CONNECTED && tries < 20) {
-        delay(500);
-        Serial.print(".");
-        tries++;
-    }
-
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("\nConnected. IP: %s\n",
-                      WiFi.localIP().toString().c_str());
-    } else {
-        Serial.println("\nWiFi reconnect failed");
-    }
-}
-
-// ── Backend Send ─────────────────────────────
-void dbSend(float voltage, uint8_t percent) {
-    ensureWiFi();
-
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("WiFi not connected - Skipping DB Send");
-        return;
-    }
-
-    WiFiClient client;
-    HTTPClient http;
-
-    http.begin(client, "http://192.168.137.1:8080/api/battery");
-    http.addHeader("Content-Type", "application/json");
-
-    char payload[128];
-    snprintf(payload, sizeof(payload),
-             "{\"slot_id\":\"%s\",\"voltage\":%.3f,\"percent\":%d}",
-             SLOT_ID, voltage, percent);
-
-    Serial.print("Sending: ");
-    Serial.println(payload);
-
-    int httpCode = http.POST(payload);
-
-    if (httpCode > 0) {
-        Serial.printf("HTTP Response: %d\n", httpCode);
-    } else {
-        Serial.printf("HTTP POST failed: %s\n",
-                      http.errorToString(httpCode).c_str());
-    }
-
-    http.end();
-}
-
-// ── Setup ────────────────────────────────────
+// ── SETUP ─────────────────────────────────────
 void setup() {
     Serial.begin(115200);
-    delay(200);
-    Serial.println("\n=== TAPP Ink Battery Monitor ===");
 
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(SSID, PASSWORD);
+    Serial.println("=== TAPP Ink Battery Monitor ===");
 
-    Serial.print("Connecting to WiFi");
-    int tries = 0;
-    while (WiFi.status() != WL_CONNECTED && tries < 30) {
-        delay(500);
-        Serial.print(".");
-        tries++;
-    }
+    armServo.attach(SERVO_PIN);
 
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("\nConnected. IP: %s\n",
-                      WiFi.localIP().toString().c_str());
-    } else {
-        Serial.println("\nWiFi failed - continuing without backend");
-    }
+    Serial.println("Arm UP (initial)");
+    armServo.write(ARM_UP_POS);
+    delay(2000);
 }
 
-// ── Loop ─────────────────────────────────────
+// ── LOOP ──────────────────────────────────────
 void loop() {
-    static bool chipLocked = false;
 
-    float rawVoltage = readVoltage();
-    bool present = rawVoltage >= V_CHIP_PRESENT;
-
-    // Chip removed -> unlock
-    if (!present && chipLocked) {
-        chipLocked = false;
-        Serial.println("Chip removed. Ready for next chip.");
-        delay(300);
-        return;
-    }
-
-    // No chip
-    if (!present) {
-        delay(300);
-        return;
-    }
-
-    // Already processed
-    if (chipLocked) {
-        delay(300);
-        return;
-    }
-
-    // ── Take 10 readings ──
     float readings[10];
+
+    // ── Move arm DOWN before measuring ──
+    Serial.println("\nLowering arm...");
+    armServo.write(ARM_DOWN_POS);
+    delay(2000); // give time to touch battery
+
+    // Wait until contact is stable
+    float check = readVoltage();
+
+    if (check < 2.8) {
+        Serial.println("No battery contact detected - skipping");
+        return;
+    }
     Serial.println("Measuring voltage...");
 
+    // ── Take 10 readings ──
     for (int i = 0; i < 10; i++) {
+
         readings[i] = readVoltage();
-        Serial.printf("Reading %d: %.3f V\n", i + 1, readings[i]);
+
+        Serial.print("Reading ");
+        Serial.print(i + 1);
+        Serial.print(": ");
+        Serial.print(readings[i], 3);
+        Serial.println(" V");
+
         delay(100);
     }
 
-    // ── Sort (bubble sort for median) ──
+    // ── Sort readings ──
     for (int i = 0; i < 9; i++) {
         for (int j = i + 1; j < 10; j++) {
+
             if (readings[j] < readings[i]) {
                 float temp = readings[i];
                 readings[i] = readings[j];
@@ -168,18 +84,20 @@ void loop() {
         }
     }
 
-    // ── Median of middle two ──
-    float medianVoltage = (readings[4] + readings[5]) / 2.0f;
-    uint8_t percent = voltageToPercent(medianVoltage);
+    // ── Median ──
+    float medianVoltage = (readings[4] + readings[5]) / 2.0;
 
-    chipCount++;
-    Serial.printf("\n[STORED #%d] MEDIAN: %.3f V  %d%%\n",
-                  chipCount, medianVoltage, percent);
+    Serial.println();
+    Serial.print("Median Voltage: ");
+    Serial.print(medianVoltage, 3);
+    Serial.println(" V");
 
-    dbSend(medianVoltage, percent);
+    // ── Move arm UP after measurement ──
+    Serial.println("Raising arm...");
+    armServo.write(ARM_UP_POS);
+    delay(2000);
 
-    Serial.println("REMOVE CHIP");
-    chipLocked = true;
+    Serial.println("-----------------------------");
 
-    delay(300);
+    delay(3000);
 }
