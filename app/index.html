@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battery Testing Tray - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>Battery Testing Tray</h1>
+            <button class="menu-button" aria-label="Menu">☰</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="dashboard-header">
+            <h2>Dashboard</h2>
+        </div>
+
+        <!-- Status and Controls Section -->
+        <div class="status-section">
+            <div class="status-filters">
+                <button class="filter-btn active" data-filter="all">Status <span class="badge">Idle</span></button>
+                <button class="filter-btn" data-filter="scanned">Scanned chips <span class="badge" id="scanned-count">6</span></button>
+                <button class="filter-btn" data-filter="good">Good chips <span class="badge" id="good-count">4</span></button>
+            </div>
+            <div class="control-buttons">
+                <button class="control-btn" id="refresh-btn" title="Refresh">🔄</button>
+                <button class="control-btn" id="settings-btn" title="Settings">⚙️</button>
+                <button class="control-btn" id="play-btn" title="Start">▶️</button>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section">
+            <div class="progress-info">
+                <span>Progress</span>
+                <span class="progress-value" id="progress-value">80%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 80%"></div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-section">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>NFC ID</th>
+                        <th>Scanned</th>
+                        <th>Voltage</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="data-tbody">
+                    <!-- Data will be populated here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Scan Status Legend -->
+        <div class="legend-section">
+            <h3>SCAN STATUS</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <span class="legend-dot not-started"></span>
+                    <span>Not Started</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-dot in-progress"></span>
+                    <span>In Progress</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-dot finished"></span>
+                    <span>Finished</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

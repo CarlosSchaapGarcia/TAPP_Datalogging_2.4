@@ -1,0 +1,378 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-green: #7bce4a;
+    --dark-green: #5ca434;
+    --light-bg: #f5f5f5;
+    --text-dark: #333;
+    --text-light: #666;
+    --border-color: #e0e0e0;
+    --success: #4CAF50;
+    --warning: #ff9800;
+    --error: #f44336;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #f0f0f0;
+    color: var(--text-dark);
+}
+
+/* ──────────── HEADER ──────────── */
+.header {
+    background-color: var(--primary-green);
+    color: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.menu-button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: opacity 0.2s;
+}
+
+.menu-button:hover {
+    opacity: 0.8;
+}
+
+/* ──────────── MAIN CONTAINER ──────────── */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.dashboard-header {
+    margin-bottom: 2rem;
+}
+
+.dashboard-header h2 {
+    font-size: 1.8rem;
+    color: var(--text-dark);
+}
+
+/* ──────────── STATUS SECTION ──────────── */
+.status-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 2rem;
+}
+
+.status-filters {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 0.75rem 1.5rem;
+    border: 2px solid var(--border-color);
+    background-color: white;
+    color: var(--text-dark);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-btn:hover {
+    border-color: var(--primary-green);
+    color: var(--primary-green);
+}
+
+.filter-btn.active {
+    background-color: var(--primary-green);
+    color: white;
+    border-color: var(--primary-green);
+}
+
+.badge {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.filter-btn.active .badge {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.control-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.control-btn {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--primary-green);
+    background-color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.control-btn:hover {
+    background-color: var(--primary-green);
+    color: white;
+}
+
+/* ──────────── PROGRESS SECTION ──────────── */
+.progress-section {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+}
+
+.progress-value {
+    color: var(--primary-green);
+    font-weight: 600;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--light-bg);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--primary-green);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* ──────────── TABLE SECTION ──────────── */
+.table-section {
+    background-color: white;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table thead {
+    background-color: var(--primary-green);
+    color: white;
+}
+
+.data-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.data-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
+}
+
+.data-table tbody tr:hover {
+    background-color: #fafafa;
+}
+
+.data-table td {
+    padding: 1rem;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+}
+
+.status-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
+    min-width: 80px;
+    text-align: center;
+}
+
+.status-badge.ok {
+    background-color: #e8f5e9;
+    color: var(--success);
+}
+
+.status-badge.waiting {
+    background-color: #fff3e0;
+    color: var(--warning);
+}
+
+.status-badge.invalid {
+    background-color: #ffebee;
+    color: var(--error);
+}
+
+.scan-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.scan-indicator.not-started {
+    background-color: var(--error);
+}
+
+.scan-indicator.in-progress {
+    background-color: var(--warning);
+}
+
+.scan-indicator.finished {
+    background-color: var(--success);
+}
+
+/* ──────────── LEGEND SECTION ──────────── */
+.legend-section {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.legend-section h3 {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin-bottom: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+.legend-items {
+    display: flex;
+    gap: 2rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.legend-dot.not-started {
+    background-color: var(--error);
+}
+
+.legend-dot.in-progress {
+    background-color: var(--warning);
+}
+
+.legend-dot.finished {
+    background-color: var(--success);
+}
+
+/* ──────────── RESPONSIVE ──────────── */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .status-section {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .control-buttons {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .status-filters {
+        width: 100%;
+    }
+
+    .data-table {
+        font-size: 0.85rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .legend-items {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* ──────────── ANIMATIONS ──────────── */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.data-table tbody tr.loading td {
+    opacity: 0.6;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--text-light);
+}
+
+.empty-state p {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
