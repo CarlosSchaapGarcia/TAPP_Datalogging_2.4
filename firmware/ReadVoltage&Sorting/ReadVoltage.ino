@@ -1,17 +1,28 @@
 #include <Servo.h>
 
-// ── SERVO ─────────────────────────────────────
+// ── SERVO 1 (arm) ─────────────────────────────────────
 Servo armServo;
-
 const int SERVO_PIN = 9;
 
 // Adjust these once you know your real angles
 const int ARM_UP_POS = 180;
 const int ARM_DOWN_POS = 90;
 
+// ── SERVO 2 (sorting board) ───────────────────────────
+Servo sortServo;
+const int SORT_SERVO_PIN = 6;
+const int BOARD_FLAT     = 0;   // Inital flat position (good inlay path)
+const int BOART_RIGHT    = 90;  // Turn 90 degree (good)
+const int BOARD_LEFT     = 270; // Turn 90 to the left (need to be tested)
+
 // ── VOLTAGE ───────────────────────────────────
 const int VOLTAGE_PIN = A0;
 const float SCALE_FACTOR = 5.0f / 1023.0f;
+const float VOLTAGE_THESHOLD = 3.0;  // Volts - below this = rejected
+
+// ── TIMING ───────────────────────────────────
+const int SORT_HOLD_DELAY = 1000;    // Time to hold position before resetting
+const int CYCLE_PAUSE     = 500;     // Pase before next cycle
 
 // ── READ VOLTAGE ─────────────────────────────
 float readVoltage() {
@@ -96,6 +107,21 @@ void loop() {
     Serial.println("Raising arm...");
     armServo.write(ARM_UP_POS);
     delay(2000);
+
+    // ── Sort decision ──
+    if (medianVoltage >= VOLTAGE_THESHOLD) {
+        Serial.println("GOOD - turning right to 90 degree.");
+        sortServo.write(BOARD_RIGHT);
+    } else {
+        Serial.println("REJECTED - turning left to 270 degrees.");
+        sortServo.write(BOARD_LEFT);
+    }
+
+    delay(SORT_HOLD_DELAY);
+
+    Serial.println("Resetting to flat.");
+    sortServo.write(BOARD_FLAT);
+    delay(CYCLE_PAUSE);
 
     Serial.println("-----------------------------");
 
