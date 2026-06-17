@@ -20,9 +20,12 @@ const int VOLTAGE_PIN = A0;
 const float SCALE_FACTOR = 5.0f / 1023.0f;
 const float VOLTAGE_THRESHOLD = 2.8;  // Volts - below this = rejected
 
+const float CONTACT_THRESHOLD = 0;  // Lowered to detect 2.6V reading
+
 // ── TIMING ───────────────────────────────────
 const int SORT_HOLD_DELAY = 1000;    // Time to hold position before resetting
 const int CYCLE_PAUSE     = 500;     // Pase before next cycle
+const int CONTACT_TIMEOUT = 65000;   // 6.5 seconds timeout for contact
 
 // ── RESTARTING / EMERGENCY STOP ──────────────────
 void (* resetFunc)(void) = 0;       // Jump to address 0 = soft restart
@@ -52,6 +55,34 @@ float readVoltage() {
     float adc = sum / 16.0;
     return adc * SCALE_FACTOR;
 }
+
+// ── WAITING FOR CONTACT (with timeout) ─────────────────────
+bool waitForContact() {
+    Serial.println("Waiting for contact...");
+    unsigned long startTime = millis();
+
+    while (millis() - startTime < CONTACT_TIMEOUT) {
+        checkForStop();
+        float check = readVoltage();
+
+        // just to see if its reading
+        // Serial.print("Checking voltage: ");
+        // Serial.print(check, 3);
+        // Serial.println(" V");
+
+        if (check >= CONTACT_THRESHOLD) {
+            Serial.println("Contact Detected!");
+            return true;    // Contact made
+        }
+
+        delay(200);     // Small delay between checks
+    }
+
+    // Timeout reached
+    Serial.println("Timeout - no contact detected, treating as rejected");
+    return false;
+}
+
 
 // ── SETUP ─────────────────────────────────────
 void setup() {
@@ -85,13 +116,22 @@ void loop() {
 
     checkForStop();
 
-    // Wait until contact is stable
-    float check = readVoltage();
+    // Wait for contact with timeout
+    if (!waitForContact()) {
+        // Timeout — treat as rejected
+        Serial.println("REJECTED - turning left to 0°.");
+        sortServo.write(BOARD_LEFT);
 
-    if (check < 2.8) {
-        Serial.println("No battery contact detected - skipping");
+        delay(SORT_HOLD_DELAY);
+        Serial.println("Resetting to flat.");
+
+        sortServo.write(BOARD_FLAT);
+        armServo.write(ARM_UP_POS);
+
+        delay(2000);
         return;
     }
+
     Serial.println("Measuring voltage...");
 
     // ── Take 10 readings ──
