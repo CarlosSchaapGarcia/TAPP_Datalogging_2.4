@@ -41,11 +41,20 @@ public class Main {
         System.out.println("Listening on " + COM_PORT + " at " + BAUD_RATE + " baud");
         System.out.println("Sending measurements to " + API_URL);
 
+        // Prevent DTR signal from resetting the ESP8266 on port open
+        port.setDTR(false);
+        port.setRTS(false);
+        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+        System.out.println("Ready — waiting for Arduino data...");
+
         HttpClient http = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
 
         int slotCounter = 1;
+
+        // Wait indefinitely for data — no timeout crash between Arduino measurements
+        port.setComPortTimeouts(SerialPort.TIMEOUT_READ_BLOCKING, 0, 0);
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(port.getInputStream()))) {
             String line;
@@ -54,14 +63,10 @@ public class Main {
                 line = line.trim();
                 System.out.println("[SERIAL] " + line);
 
-                // New firmware outputs: "Median Voltage: 3.142 V"
-                if (!line.startsWith("Median Voltage:")) {
-                    continue;
-                }
-
+                // ReadVoltageSerial.ino (ESP8266) outputs a bare number: "3.142"
+                // ReadVoltage.ino (Arduino UNO) outputs: "Median Voltage: 3.142 V"
                 float voltage = parseVoltage(line);
                 if (voltage < 0) {
-                    System.out.println("Could not parse voltage from: " + line);
                     continue;
                 }
 
@@ -87,16 +92,21 @@ public class Main {
     }
 
     /**
-     * Parses voltage from "Median Voltage: 3.142 V"
+     * Parses voltage from either:
+     *   "3.142"                  (ReadVoltageSerial.ino — ESP8266)
+     *   "Median Voltage: 3.142 V" (ReadVoltage.ino — Arduino UNO)
+     * Returns -1 if the line cannot be parsed as a voltage.
      */
     private static float parseVoltage(String line) {
         try {
-            // Remove prefix and unit suffix, leaving just the number
             String number = line
                     .replace("Median Voltage:", "")
                     .replace("V", "")
                     .trim();
-            return Float.parseFloat(number);
+            float v = Float.parseFloat(number);
+            // Sanity check — ignore noise/debug lines that happen to parse as numbers
+            if (v < 0 || v > 5) return -1;
+            return v;
         } catch (NumberFormatException e) {
             return -1;
         }
