@@ -7,6 +7,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Locale;
 
 /**
  * USB Serial → Backend bridge for TAPP battery voltage data.
@@ -22,7 +23,7 @@ import java.time.Duration;
  */
 public class Main {
 
-    private static final String COM_PORT  = System.getenv().getOrDefault("COM_PORT",  "COM6");
+    private static final String COM_PORT  = System.getenv().getOrDefault("COM_PORT",  "COM3");
     private static final int    BAUD_RATE = Integer.parseInt(System.getenv().getOrDefault("BAUD_RATE", "115200"));
     private static final String API_URL   = System.getenv().getOrDefault("API_URL",   "http://localhost:8080");
 
@@ -30,8 +31,14 @@ public class Main {
     private static final float V_MIN = 2.40f;
 
     public static void main(String[] args) {
+        System.out.println("Available serial ports:");
+        for (SerialPort availablePort : SerialPort.getCommPorts()) {
+            System.out.println(" - " + availablePort.getSystemPortName() + " (" + availablePort.getDescriptivePortName() + ")");
+        }
+
         SerialPort port = SerialPort.getCommPort(COM_PORT);
-        port.setBaudRate(BAUD_RATE);
+        port.setComPortParameters(BAUD_RATE, 8, SerialPort.ONE_STOP_BIT, SerialPort.NO_PARITY);
+        port.setComPortTimeouts(SerialPort.TIMEOUT_READ_BLOCKING, 0, 0);
 
         if (!port.openPort()) {
             System.out.println("Failed to open port: " + COM_PORT);
@@ -41,9 +48,9 @@ public class Main {
         System.out.println("Listening on " + COM_PORT + " at " + BAUD_RATE + " baud");
         System.out.println("Sending measurements to " + API_URL);
 
-        // Prevent DTR signal from resetting the ESP8266 on port open
-        port.setDTR(false);
-        port.setRTS(false);
+        // Arduino UNO works best with DTR/RTS asserted after opening the port.
+        port.setDTR();
+        port.setRTS();
         try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
         System.out.println("Ready — waiting for Arduino data...");
 
@@ -127,7 +134,7 @@ public class Main {
      * Returns true if the server accepted the measurement.
      */
     private static boolean postMeasurement(HttpClient http, String slotId, float voltage, int percent) {
-        String body = String.format(
+        String body = String.format(Locale.US,
                 "{\"slot_id\":\"%s\",\"voltage\":%.3f,\"percent\":%d}",
                 slotId, voltage, percent
         );
