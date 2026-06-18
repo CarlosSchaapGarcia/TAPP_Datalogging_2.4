@@ -1,73 +1,148 @@
 import com.fazecast.jSerialComm.SerialPort;
-import java.io.InputStream;
-import java.sql.*;
-import java.time.LocalDateTime;
 
-public class Main
-{
-    public static void main(String[] args) throws SQLException
-    {
-        // Set the CommPort to the one connected to arduino
-        SerialPort COM_PORT = SerialPort.getCommPort("COM6");
-        COM_PORT.setBaudRate(9600);
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 
-        // Database credentials, set to correct one
-        final String DB_URL = "jdbc:postgresql://localhost:5432/tapp_battery";
-        final String USERNAME = "postgres";
-        final String PASSWORD = "6767";
+/**
+ * USB Serial → Backend bridge for TAPP battery voltage data.
+ *
+ * Reads voltage measurements from the Arduino over USB serial,
+ * then POSTs them to the backend API which pairs each reading
+ * with the current NFC ID (set by the NFC reader on /api/nfc).
+ *
+ * Config via environment variables:
+ *   COM_PORT    - serial port name (default: COM6)
+ *   BAUD_RATE   - baud rate       (default: 115200)
+ *   API_URL     - backend base URL (default: http://localhost:8080)
+ */
+public class Main {
 
-        char commChar = 0;
+    private static final String COM_PORT  = System.getenv().getOrDefault("COM_PORT",  "COM6");
+    private static final int    BAUD_RATE = Integer.parseInt(System.getenv().getOrDefault("BAUD_RATE", "115200"));
+    private static final String API_URL   = System.getenv().getOrDefault("API_URL",   "http://localhost:8080");
 
-        // Connection to database
-        Connection db = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+    private static final float V_MAX = 3.60f;
+    private static final float V_MIN = 2.40f;
 
-        // If port fails to open
-        if (!COM_PORT.openPort()) {
-            System.out.println("Failed to open port");
+    public static void main(String[] args) {
+        SerialPort port = SerialPort.getCommPort(COM_PORT);
+        port.setBaudRate(BAUD_RATE);
+
+        if (!port.openPort()) {
+            System.out.println("Failed to open port: " + COM_PORT);
             return;
         }
 
-        System.out.println("Port opened");
+        System.out.println("Listening on " + COM_PORT + " at " + BAUD_RATE + " baud");
+        System.out.println("Sending measurements to " + API_URL);
 
-        InputStream in = COM_PORT.getInputStream();
+        HttpClient http = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
 
-        try {
-            // Runs constantly
-            while (true) {
-                StringBuilder voltageStringBuilder = new StringBuilder();
-                double voltage = -1;
+        int slotCounter = 1;
 
-                // Reads characters from COM port one by one and stores them as a string
-                while (in.available() > 0) {
-                    int data = in.read();
-                    commChar = (char) data;
-                    voltageStringBuilder.append(commChar);
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(port.getInputStream()))) {
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                System.out.println("[SERIAL] " + line);
+
+                // New firmware outputs: "Median Voltage: 3.142 V"
+                if (!line.startsWith("Median Voltage:")) {
+                    continue;
                 }
 
-                // Converts a string to a double
-                if (!voltageStringBuilder.isEmpty())
-                {
-                    String voltageString = voltageStringBuilder.toString();
-                    voltage = Double.parseDouble(voltageString);
+                float voltage = parseVoltage(line);
+                if (voltage < 0) {
+                    System.out.println("Could not parse voltage from: " + line);
+                    continue;
                 }
 
-                // Sends a query to the database
-                if (voltage != -1)
-                {
-                    System.out.println(voltage);
-                    PreparedStatement st = db.prepareStatement("INSERT INTO \"BatteryVoltage\" " +
-                            "(\"chipID\", \"dateTime\", \"voltage\") VALUES (?, ?, ?)");
-                    st.setString(1, "1111");
-                    st.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
-                    st.setDouble(3, voltage);
-                    st.executeUpdate();
-                    st.close();
+                int percent   = voltageToPercent(voltage);
+                String slotId = "SLOT-" + slotCounter;
+
+                System.out.printf("Parsed → slot: %s | voltage: %.3f V | percent: %d%%%n",
+                        slotId, voltage, percent);
+
+                boolean sent = postMeasurement(http, slotId, voltage, percent);
+
+                if (sent) {
+                    slotCounter++;
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
-        COM_PORT.closePort();
+        } catch (Exception e) {
+            System.out.println("Error reading serial: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            port.closePort();
+        }
+    }
+
+    /**
+     * Parses voltage from "Median Voltage: 3.142 V"
+     */
+    private static float parseVoltage(String line) {
+        try {
+            // Remove prefix and unit suffix, leaving just the number
+            String number = line
+                    .replace("Median Voltage:", "")
+                    .replace("V", "")
+                    .trim();
+            return Float.parseFloat(number);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Maps voltage to 0-100% using the same thresholds as the backend.
+     */
+    private static int voltageToPercent(float voltage) {
+        if (voltage >= V_MAX) return 100;
+        if (voltage <= V_MIN) return 0;
+        return Math.round((voltage - V_MIN) / (V_MAX - V_MIN) * 100);
+    }
+
+    /**
+     * POSTs a measurement to POST /api/battery.
+     * The backend pairs it with the current NFC ID stored in its memory.
+     * Returns true if the server accepted the measurement.
+     */
+    private static boolean postMeasurement(HttpClient http, String slotId, float voltage, int percent) {
+        String body = String.format(
+                "{\"slot_id\":\"%s\",\"voltage\":%.3f,\"percent\":%d}",
+                slotId, voltage, percent
+        );
+
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(API_URL + "/api/battery"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .timeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                System.out.println("Stored OK: " + response.body());
+                return true;
+            } else {
+                System.out.println("Backend rejected [" + response.statusCode() + "]: " + response.body());
+                return false;
+            }
+
+        } catch (Exception e) {
+            System.out.println("Failed to reach backend: " + e.getMessage());
+            return false;
+        }
     }
 }
