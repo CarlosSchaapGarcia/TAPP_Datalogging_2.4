@@ -18,9 +18,9 @@ const int BOARD_LEFT     = 0; // Turn 90 to the left (need to be tested)
 // ── VOLTAGE ───────────────────────────────────
 const int VOLTAGE_PIN = A0;
 const float SCALE_FACTOR = 5.0f / 1023.0f;
-const float VOLTAGE_THRESHOLD = 2.8;  // Volts - below this = rejected
-
+const float VOLTAGE_THRESHOLD = 3.0;  // Volts - below this = rejected
 const float CONTACT_THRESHOLD = 0;  // Lowered to detect 2.6V reading
+const float NOISE_THRESHOLD = 2.2;
 
 // ── TIMING ───────────────────────────────────
 const int SORT_HOLD_DELAY = 1000;    // Time to hold position before resetting
@@ -58,7 +58,7 @@ float readVoltage() {
 
 // ── WAITING FOR CONTACT (with timeout) ─────────────────────
 bool waitForContact() {
-    Serial.println("Waiting for contact...");
+    // Waiting for contact...
     unsigned long startTime = millis();
 
     while (millis() - startTime < CONTACT_TIMEOUT) {
@@ -71,15 +71,13 @@ bool waitForContact() {
         // Serial.println(" V");
 
         if (check >= CONTACT_THRESHOLD) {
-            Serial.println("Contact Detected!");
+            // Contact Detected!
             return true;    // Contact made
         }
 
         delay(200);     // Small delay between checks
     }
-
-    // Timeout reached
-    Serial.println("Timeout - no contact detected, treating as rejected");
+    // Timeout - no contact detected, treating as rejected
     return false;
 }
 
@@ -88,19 +86,19 @@ bool waitForContact() {
 void setup() {
     Serial.begin(115200);
 
-    Serial.println("=== TAPP Ink Battery Monitor ===");
+    // === TAPP Ink Battery Monitor ===
 
     // Servo 1
     armServo.attach(SERVO_PIN);
 
-    Serial.println("Arm UP (initial)");
+    // Arm UP (initial)
     armServo.write(ARM_UP_POS);
     delay(2000);
 
     // Servo 2
     sortServo.attach(SORT_SERVO_PIN);
     sortServo.write(BOARD_FLAT);
-    Serial.println("Sorting servo ready.");
+    // Sorting servo ready.
     delay(500);
 }
 
@@ -110,7 +108,7 @@ void loop() {
     float readings[10];
 
     // ── Move arm DOWN before measuring ──
-    Serial.println("\nLowering arm...");
+    // Lowering arm...
     armServo.write(ARM_DOWN_POS);
     delay(2000); // give time to touch battery
 
@@ -119,11 +117,11 @@ void loop() {
     // Wait for contact with timeout
     if (!waitForContact()) {
         // Timeout — treat as rejected
-        Serial.println("REJECTED - turning left to 0°.");
+        // REJECTED - turning left to 0°.
         sortServo.write(BOARD_LEFT);
 
         delay(SORT_HOLD_DELAY);
-        Serial.println("Resetting to flat.");
+        // Resetting to flat.
 
         sortServo.write(BOARD_FLAT);
         armServo.write(ARM_UP_POS);
@@ -132,21 +130,13 @@ void loop() {
         return;
     }
 
-    Serial.println("Measuring voltage...");
+    // Measuring voltage...
 
     // ── Take 10 readings ──
     for (int i = 0; i < 10; i++) {
 
         readings[i] = readVoltage();
-
-        Serial.print("Reading ");
-        Serial.print(i + 1);
-        Serial.print(": ");
-        Serial.print(readings[i], 3);
-        Serial.println(" V");
-
         delay(100);
-        
         checkForStop();
     }
 
@@ -165,38 +155,39 @@ void loop() {
     // ── Median ──
     float medianVoltage = (readings[4] + readings[5]) / 2.0;
 
-    Serial.println();
-    Serial.print("Median Voltage: ");
-    Serial.print(medianVoltage, 3);
-    Serial.println(" V");
-
     checkForStop();
 
     // ── Move arm UP after measurement ──
-    Serial.println("Raising arm...");
+    // Raising arm...
     armServo.write(ARM_UP_POS);
     delay(2000);
 
-    // ── Sort decision ──
-    if (medianVoltage >= VOLTAGE_THRESHOLD) {
-        Serial.println("GOOD - turning right to 90 degree.");
-        sortServo.write(BOARD_RIGHT);
-    } else {
-        Serial.println("REJECTED - turning left to 270 degrees.");
-        sortServo.write(BOARD_LEFT);
+    if (medianVoltage > NOISE_THRESHOLD)
+    {
+        Serial.println(medianVoltage);
+        // ── Sort decision ──
+        if (medianVoltage >= VOLTAGE_THRESHOLD) 
+        {
+            // GOOD - turning right to 90 degree.
+            sortServo.write(BOARD_RIGHT);
+        } else 
+        {
+            // REJECTED - turning left to 270 degrees.
+            sortServo.write(BOARD_LEFT);
+        }
     }
+    
+    
 
     delay(SORT_HOLD_DELAY);
 
     checkForStop();
 
-    Serial.println("Resetting to flat.");
+    // Resetting to flat.
     sortServo.write(BOARD_FLAT);
     delay(CYCLE_PAUSE);
 
-    Serial.println("STOP SCANNING");
-
-    Serial.println("-----------------------------");
+    // STOP SCANNING
 
     delay(3000);
 }
