@@ -28,7 +28,6 @@ async function initDatabase() {
                 slot_id VARCHAR(50) NOT NULL,
                 nfc_id VARCHAR(100) NOT NULL,
                 voltage NUMERIC(6,3) NOT NULL,
-                percent INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW()
                 );
 

@@ -2,7 +2,12 @@ import com.fazecast.jSerialComm.SerialPort;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import javax.smartcardio.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.Timestamp;
 import java.util.List;
+import java.time.LocalDateTime;
 
 public class Main {
 
@@ -46,6 +51,14 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
+
+        // Database credentials, set to correct one
+        final String DB_URL = "jdbc:postgresql://localhost:5432/tapp_battery";
+        final String USERNAME = "postgres";
+        final String PASSWORD = "6767";
+
+        Connection db = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+
         // Find and open port
         SerialPort[] ports = SerialPort.getCommPorts();
         if (ports.length == 0) {
@@ -84,10 +97,20 @@ public class Main {
             line = line.trim();
             if (line.isEmpty()) continue;
 
+            double voltage = Double.parseDouble(line);
+
             String inlayID = readNfcId();
 
             System.out.println(inlayID);
-            System.out.println(line); // print raw, like a serial monitor
+            System.out.println(voltage); // print raw, like a serial monitor
+
+            PreparedStatement st = db.prepareStatement("INSERT INTO \"BatteryVoltage\" " +
+                    "(67, \"nfc_id\", \"voltage\", \"created_at\") VALUES (?, ?, ?)");
+            st.setString(1, inlayID);
+            st.setDouble(2, voltage);
+            st.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now()));
+            st.executeUpdate();
+            st.close();
 
             // Optional: try to parse as a number
             try {
