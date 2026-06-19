@@ -6,27 +6,24 @@ A battery monitoring and datalogging system for TAPP ink chips. This project use
 
 The system consists of three main components:
 
-1. **Firmware (ESP8266)**: Continuously monitors analog voltage from a connected sensor. Detects chip insertion, stabilizes readings, calculates battery percentage, and sends data to the backend via HTTP POST.
-2. **Backend (Node.js/Fastify)**: Provides a REST API for receiving NFC scans and battery measurements. Stores data in PostgreSQL with NFC-chip associations.
-3. **NFC Reader (Python)**: Reads NFC tags and sends IDs to the backend for chip identification.
+1. **Firmware (Arduino UNO)**: Continuously monitors analog voltage from a connected sensor. Detects chip insertion and sends the data to backend.
+2. **Backend (PostgreSQL, Java)**: Communicates with Aduino board and stores the data in PostgreSQL with NFC-chip associations.
+3. **NFC Reader (Java)**: Reads NFC tags and sends IDs to the backend for chip identification.
 
 ### Data Flow
-- NFC reader scans chip and sends ID to `/api/nfc`
-- ESP8266 detects chip insertion (voltage > 1.0V)
-- ESP8266 takes voltage readings and sends to `/api/battery`
+- NFC reader scans chip and sends ID to java backend
+- Arduino reads the voltage of the battery
+- Battery voltage is sent to the backend via COM port
 - Backend associates measurement with last scanned NFC ID
 - Data is stored in PostgreSQL database
-- API endpoints allow fetching logged measurements
+- Dashboard fetches the data and displays it to the user
 
 ## Prerequisites
 
 - **Docker & Docker Compose**: [Install Docker](https://docs.docker.com/get-docker/)
-- **Python 3.10+** and `pip` if you want to run the NFC reader on the host
 - **Arduino IDE**: [Download here](https://www.arduino.cc/en/software) (for ESP8266 firmware)
-- **ESP8266 Board** (e.g., ESP-12 or NodeMCU) with voltage sensor connected to A0 pin
+- **Arduino Uno** with voltage sensor connected to A0 pin
 - **NFC Reader Hardware** (optional, for full NFC integration)
-- **Python Version** [Install Lower Python Version](https://www.python.org/downloads/release/python-3110/) due to library issues
-- Same WiFi network for ESP8266 and server
 
 ## Installation
 
@@ -46,10 +43,10 @@ The system consists of three main components:
    ```bash
    docker-compose up --build
    ```
-   - Backend runs on `http://localhost:8080`
    - Database runs on `localhost:5432`
    - Database is automatically initialized on startup if the table does not exist
    - This starts the backend and database containers
+   - Dashboard runs on `localhost:3001`
 
 2. Stop the services:
    ```bash
@@ -67,80 +64,23 @@ The system consists of three main components:
 
 If you prefer not to use Docker:
 
-1. Install Node.js (v18+) and PostgreSQL
+1. Install PostgreSQL
 2. Install dependencies: `npm install`
 3. Set up PostgreSQL database
 4. Update `.env` with your database credentials
-5. Start server: `node backend/server.js`
 
-### Firmware (ESP8266)
+### Firmware (Arduino UNO)
 
 1. Open `firmware/ReadVoltage/ReadVoltage.ino` in Arduino IDE
-2. Update WiFi credentials in the code:
-   ```cpp
-   const char* SSID     = "Your_WiFi_SSID";
-   const char* PASSWORD = "Your_WiFi_Password";
-   ```
-3. Update server URL (use your Docker host IP):
-   ```cpp
-   http.begin(client, "http://YOUR_HOST_IP:8080/api/battery");
-   ```
-4. Install ESP8266 board support in Arduino IDE:
-   - File → Preferences → Additional Boards Manager URLs
-   - Add: `http://arduino.esp8266.com/stable/package_esp8266com_index.json`
-   - Tools → Board → Boards Manager → Install "ESP8266 by ESP8266 Community"
-   - Select board: Tools → Board → NodeMCU 1.0 (ESP-12E Module)
-5. Select port and upload the firmware
-6. Monitor via Serial (115200 baud)
+2. Select port and upload the firmware
+3. Monitor via Serial (115200 baud)
 
-### NFC Reader
+### NFC Reader and COM port handling
 
-1. Install Python dependencies:
-   ```bash
-   pip install -r backend/requirements.txt
-   ```
-   - This installs `requests` and `pyscard`
-   - `pyscard` is used to communicate with the NFC reader
-   - On Windows, you may also need PC/SC smart card drivers for your NFC reader
-
-2. Ensure the reader is connected and recognized by your system
-
-3. Run the NFC reader script:
-   ```bash
-   python backend/nfc_reader.py
-   ```
-   - This sends NFC scans to the backend API
-   - You can override the backend target with `NFC_API_URL`
-
-### Python Packages Used For NFC
-
-- `requests`: sends NFC scan data to the backend API
-- `pyscard`: reads NFC tags through a compatible smart card / PCSC reader
-- `python version`: 3.11 or download here from official link `https://www.python.org/downloads/release/python-3110/`
-
-### NFC With Docker
-
-- `docker-compose --profile nfc up --build` starts an extra `tapp-nfc` container that runs `backend/nfc_reader.py`
-- The container sends scans to `http://tapp-backend:8080/api/nfc`
-- On Linux hosts, USB/PCSC passthrough can be configured so the container can access the reader
-- On Docker Desktop for Windows/macOS, NFC hardware passthrough is often not available, so the container may start correctly but still be unable to see the physical reader
-- If Docker cannot access the NFC hardware on your machine, keep using Docker for `tapp-backend` and `tapp-db`, and run `python backend/nfc_reader.py` on the host instead
-
-## API Documentation
-
-### Battery Endpoints
-- **POST /api/battery**: Log measurement
-  - Body: `{"slot_id": "string", "voltage": float, "percent": int}`
-  - Associates with last scanned NFC ID
-  - Response: `{"id": int, "created_at": "timestamp", "nfc_id": "string"}`
-- **GET /api/battery**: Get last 50 measurements
-- **GET /api/battery/validate**: Get invalid measurements (voltage/percent out of range)
-
-### NFC Endpoints
-- **POST /api/nfc**: Store NFC scan
-  - Body: `{"nfc_id": "string"}`
-  - Stores in memory for next battery measurement
-- **GET /api/nfc**: Get current stored NFC ID
+1. Ensure the reader is connected and recognized by your system
+2. Run the handling program: 
+`offlineDatabaseHandling/SerialCommunication/src/Main.java`
+3. Make sure program connects to the correct port. If not, correct port number in line 74
 
 ## Configuration
 
@@ -158,7 +98,6 @@ PORT=8080
 ### Firmware Configuration
 - **Voltage Calibration**: Adjust `SCALE_FACTOR`, `OFFSET`, `V_MAX`, `V_MIN` for accurate readings
 - **Chip Detection**: `V_CHIP_PRESENT` threshold for insertion/removal
-- **WiFi/Server**: Update SSID, PASSWORD, and server URL
 
 ### Database Schema
 - Automatic initialization via `backend/init-db.js`
@@ -196,35 +135,10 @@ You can inspect the database directly from the Docker container with `psql`.
    - Inside `psql`, use `\dt` to list tables
    - Inside `psql`, use `SELECT * FROM battery_measurements;` to inspect rows
 
-## Testing
-
-1. Start Docker services: `docker-compose up`
-2. Test NFC (optional): POST to `/api/nfc` with test NFC ID
-3. Test battery logging: POST to `/api/battery` with sample data
-4. Verify data: GET `/api/battery` should return stored measurements
-5. Upload firmware to ESP8266 and test with real hardware
-
-Example API calls:
-```bash
-# Store NFC ID
-curl -X POST http://localhost:8080/api/nfc \
-  -H "Content-Type: application/json" \
-  -d '{"nfc_id":"ABC123"}'
-
-# Log battery measurement
-curl -X POST http://localhost:8080/api/battery \
-  -H "Content-Type: application/json" \
-  -d '{"slot_id":"slot_01","voltage":3.5,"percent":80}'
-
-# Get measurements
-curl http://localhost:8080/api/battery
-```
-
 ## Troubleshooting
 
 - **Docker Issues**: Ensure Docker Desktop is running
 - **Port Conflicts**: If 8080/5432 are in use, modify `docker-compose.yml`
-- **WiFi Issues**: Verify ESP8266 credentials and network connectivity
 - **No Data**: Check server logs with `docker-compose logs`
 - **Voltage Calibration**: Use multimeter to verify readings
 - **NFC Not Working**: Ensure NFC reader script is running and hardware is connected
@@ -243,7 +157,6 @@ Recommended `.env`:
 
 ```env
 PORT=8080
-NODE_ENV=development
 DB_HOST=tapp-db
 DB_PORT=5432
 DB_USER=postgres
